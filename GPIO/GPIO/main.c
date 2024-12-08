@@ -6,25 +6,46 @@
 void SetSysClockTo72();
 void PINC_13_INIT_OUTPUT();
 void PINA_0_INIT_INPUT();
+void Interrapt_EXTI_PR_PR0();
 
 int main()
 {
   SetSysClockTo72();
   PINC_13_INIT_OUTPUT();
   PINA_0_INIT_INPUT();
+  Interrapt_EXTI_PR_PR0();
 
   
   while(1){
-    if(GET_PIN_A0)
-    {
-      LED_PINC13_ON;
-    }
-    else
-    {
-      LED_PINC13_OFF;
-    }
+    
   }
   return 0;
+}
+void EXTI0_IRQHandler()
+{
+  EXTI->PR|=EXTI_PR_PR0;
+  if(READ_BIT(EXTI->PR,EXTI_PR_PR0))
+  {
+    LED_PINC13_ON;
+    for(uint32_t i=0;i<4500000;i++);
+    LED_PINC13_OFF;
+  }
+}
+void Interrapt_EXTI_PR_PR0()
+{
+  EXTI->PR|=EXTI_PR_PR0;//Resetting the interrupt flag
+ 
+  EXTI->IMR|=EXTI_IMR_MR0;//Enabling interrupts for channels 0
+ 
+  AFIO->EXTICR[0]&=~AFIO_EXTICR1_EXTI0_PA;//Selecting the PA0 port to interrupt
+ 
+  RCC->APB2ENR|=RCC_APB2ENR_IOPAEN;//Enabling the clocking of port A
+ 
+  EXTI->FTSR|=EXTI_FTSR_TR0;//Interruption due to power loss
+ 
+  NVIC_EnableIRQ(EXTI0_IRQn);//Interrupt resolution
+ 
+  NVIC_SetPriority(EXTI0_IRQn,0);//Setting the interrupt priority
 }
 void PINA_0_INIT_INPUT()
 {
@@ -35,6 +56,7 @@ void PINA_0_INIT_INPUT()
   
   GPIOA->CRL&=~GPIO_CRL_CNF0_0;
   GPIOA->CRL|=GPIO_CRL_CNF0_1;//Input with disconnected resistors
+  GPIOA->BSRR|=GPIO_BSRR_BR0;
 }
 void PINC_13_INIT_OUTPUT()
 {
